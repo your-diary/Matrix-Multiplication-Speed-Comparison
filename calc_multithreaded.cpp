@@ -4,6 +4,10 @@ using namespace std;
 #include <chrono>
 #include <thread>
 
+#define F_MODE 3
+
+#if F_MODE == 1
+
 void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<vector<double>> &C, unsigned row_start, unsigned row_end) {
     const unsigned j_max = B[0].size();
     const unsigned k_max = B.size();
@@ -15,6 +19,72 @@ void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<
         }
     }
 }
+
+#elif F_MODE == 2
+
+//This version just changed the order of `j` and `k` which leads to a smaller number of cache-misses.
+void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<vector<double>> &C, unsigned row_start, unsigned row_end) {
+    const unsigned j_max = B[0].size();
+    const unsigned k_max = B.size();
+    for (int i = row_start; i < row_end; ++i) {
+        for (int k = 0; k < k_max; ++k) {
+            for (int j = 0; j < j_max; ++j) {
+                C[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+}
+
+#elif F_MODE == 3
+
+//Same as above, plus partial unrolling.
+void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<vector<double>> &C, unsigned row_start, unsigned row_end) {
+    const unsigned j_max = B[0].size();
+    static const unsigned num_unroll = 5;
+    const unsigned k_max_for_unrolled_loop = B.size() / num_unroll * num_unroll;
+    const unsigned k_max = B.size();
+    for (int i = row_start; i < row_end; ++i) {
+        for (int k = 0; k < k_max_for_unrolled_loop; k += num_unroll) {
+            for (int j = 0; j < j_max; ++j) {
+                C[i][j] += A[i][k] * B[k][j];
+                C[i][j] += A[i][k+1] * B[k+1][j];
+                C[i][j] += A[i][k+2] * B[k+2][j];
+                C[i][j] += A[i][k+3] * B[k+3][j];
+                C[i][j] += A[i][k+4] * B[k+4][j];
+            }
+        }
+        for (int k = k_max_for_unrolled_loop; k < k_max; ++k) {
+            for (int j = 0; j < j_max; ++j) {
+                C[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+}
+
+#elif F_MODE == 4
+
+//transpose version
+//This first transpose `B` to reduce cache-misses.
+//Perhaps transposing `B` before the call of this function is a better idea.
+void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<vector<double>> &C, unsigned row_start, unsigned row_end) {
+    vector<vector<double>> B_transposed(B[0].size(), vector<double>(B.size()));
+    for (int i = 0; i< B_transposed.size(); ++i) {
+        for (int j = 0; j < B_transposed[0].size(); ++j) {
+            B_transposed[i][j] = B[j][i];
+        }
+    }
+    const unsigned j_max = B[0].size();
+    const unsigned k_max = B.size();
+    for (int i = row_start; i < row_end; ++i) {
+        for (int j = 0; j < j_max; ++j) {
+            for (int k = 0; k < k_max; ++k) {
+                C[i][j] += A[i][k] * B_transposed[j][k];
+            }
+        }
+    }
+}
+
+#endif
 
 int main(int argc, char **argv) {
 
