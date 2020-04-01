@@ -8,6 +8,21 @@ Using nested `std::vector` to represent matrices [is a bad idea](https://scicomp
 
 # Usage
 
+## Preparations
+
+```bash
+$ git clone https://github.com/your-diary/Matrix-Multiplication-Speed-Comparison #downloads this project
+Cloning into 'Matrix-Multiplication-Speed-Comparison'...
+remote: Enumerating objects: 11, done.
+remote: Counting objects: 100% (11/11), done.
+remote: Compressing objects: 100% (8/8), done.
+remote: Total 11 (delta 3), reused 11 (delta 3), pack-reused 0
+Receiving objects: 100% (11/11), done.
+Resolving deltas: 100% (3/3), done.
+
+$ cd Matrix-Multiplication-Speed-Comparison/ #moves to the project directory
+```
+
 ## Usage
 
 ```bash
