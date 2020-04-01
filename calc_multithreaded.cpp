@@ -4,7 +4,7 @@ using namespace std;
 #include <chrono>
 #include <thread>
 
-#define F_MODE 3
+#define F_MODE 4
 
 #if F_MODE == 1
 
@@ -39,10 +39,13 @@ void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<
 
 //Same as above, plus partial unrolling.
 void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<vector<double>> &C, unsigned row_start, unsigned row_end) {
-    const unsigned j_max = B[0].size();
+
     static const unsigned num_unroll = 5;
+
+    const unsigned j_max = B[0].size();
     const unsigned k_max_for_unrolled_loop = B.size() / num_unroll * num_unroll;
     const unsigned k_max = B.size();
+
     for (int i = row_start; i < row_end; ++i) {
         for (int k = 0; k < k_max_for_unrolled_loop; k += num_unroll) {
             for (int j = 0; j < j_max; ++j) {
@@ -59,9 +62,42 @@ void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<
             }
         }
     }
+
 }
 
 #elif F_MODE == 4
+
+//Same as above, plus introduced `sum` to reduce the call of `C[i][j]`.
+void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<vector<double>> &C, unsigned row_start, unsigned row_end) {
+
+    static const unsigned num_unroll = 5;
+
+    const unsigned j_max = B[0].size();
+    const unsigned k_max_for_unrolled_loop = B.size() / num_unroll * num_unroll;
+    const unsigned k_max = B.size();
+
+    for (int i = row_start; i < row_end; ++i) {
+        for (int k = 0; k < k_max_for_unrolled_loop; k += num_unroll) {
+            for (int j = 0; j < j_max; ++j) {
+                double sum;
+                sum = A[i][k] * B[k][j];
+                sum += A[i][k+1] * B[k+1][j];
+                sum += A[i][k+2] * B[k+2][j];
+                sum += A[i][k+3] * B[k+3][j];
+                sum += A[i][k+4] * B[k+4][j];
+                C[i][j] += sum;
+            }
+        }
+        for (int k = k_max_for_unrolled_loop; k < k_max; ++k) {
+            for (int j = 0; j < j_max; ++j) {
+                C[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+
+}
+
+#elif F_MODE == 5
 
 //transpose version
 //This first transpose `B` to reduce cache-misses.
