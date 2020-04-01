@@ -34,8 +34,8 @@ echo
 
 #Unmomment this line if you'd like to check all the outputs are exactly same.
 #If `vimdiff` shows all the files in folded forms, it means everything is file.
-# See `man vimdiff` for the detail.
-vimdiff result/*
+#See `man vimdiff` for the detail.
+# vimdiff result/*
 
 set +e
 
