@@ -1,8 +1,9 @@
-using namespace std;
 #include <iostream>
 #include <vector>
 #include <chrono>
 #include <thread>
+
+using namespace std;
 
 #define F_MODE 4
 
@@ -99,6 +100,107 @@ void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<
 
 #elif F_MODE == 5
 
+//Same as above, plus introduced `p` to the call of the operator function [].
+//Note `p` is a pointer to the internal raw array, so that it should be faster than an iterator.
+void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<vector<double>> &C, unsigned row_start, unsigned row_end) {
+
+    static const unsigned num_unroll = 5;
+
+    const unsigned j_max = B[0].size();
+    const unsigned k_max_for_unrolled_loop = B.size() / num_unroll * num_unroll;
+    const unsigned k_max = B.size();
+
+    for (int i = row_start; i < row_end; ++i) {
+        for (int k = 0; k < k_max_for_unrolled_loop; k += num_unroll) {
+            for (int j = 0; j < j_max; ++j) {
+                const double *p = A[i].data() + k;
+                double sum;
+                sum = *p++ * B[k][j];
+                sum += *p++ * B[k+1][j];
+                sum += *p++ * B[k+2][j];
+                sum += *p++ * B[k+3][j];
+                sum += *p++ * B[k+4][j];
+                C[i][j] += sum;
+            }
+        }
+        for (int k = k_max_for_unrolled_loop; k < k_max; ++k) {
+            const double a = A[i][k];
+            for (int j = 0; j < j_max; ++j) {
+                C[i][j] += a * B[k][j];
+            }
+        }
+    }
+
+}
+
+#elif F_MODE == 6
+
+//Same as above without the introduction of `p`, plus using pointers intead of references.
+//Pass arguments as pointers instead of `std::cref()` or `std::ref()`.
+//Seems a little little little bit faster than the original.
+void f(const vector<vector<double>> *A, const vector<vector<double>> *B, vector<vector<double>> *C, unsigned row_start, unsigned row_end) {
+
+    static const unsigned num_unroll = 5;
+
+    const unsigned j_max = B -> operator[](0).size();
+    const unsigned k_max_for_unrolled_loop = B -> size() / num_unroll * num_unroll;
+    const unsigned k_max = B -> size();
+
+    for (int i = row_start; i < row_end; ++i) {
+        for (int k = 0; k < k_max_for_unrolled_loop; k += num_unroll) {
+            for (int j = 0; j < j_max; ++j) {
+                double sum;
+                sum = A -> operator[](i)[k] * B -> operator[](k)[j];
+                sum += A -> operator[](i)[k+1] * B -> operator[](k+1)[j];
+                sum += A -> operator[](i)[k+2] * B -> operator[](k+2)[j];
+                sum += A -> operator[](i)[k+3] * B -> operator[](k+3)[j];
+                sum += A -> operator[](i)[k+4] * B -> operator[](k+4)[j];
+                C -> operator[](i)[j] += sum;
+            }
+        }
+        for (int k = k_max_for_unrolled_loop; k < k_max; ++k) {
+            for (int j = 0; j < j_max; ++j) {
+                C -> operator[](i)[j] += A -> operator[](i)[k] * B -> operator[](k)[j];
+            }
+        }
+    }
+
+}
+
+#elif F_MODE == 7
+
+//Uses `column_*` instead of `row_*`, which means the input should be devided not by row but by column.
+void f(const vector<vector<double>> &A, const vector<vector<double>> &B, vector<vector<double>> &C, unsigned column_start, unsigned column_end) {
+
+    static const unsigned num_unroll = 5;
+
+    const unsigned k_max_for_unrolled_loop = B.size() / num_unroll * num_unroll;
+    const unsigned k_max = B.size();
+    const unsigned i_max = C.size();
+
+    for (int i = 0; i < i_max; ++i) {
+        for (int k = 0; k < k_max_for_unrolled_loop; k += num_unroll) {
+            for (int j = column_start; j < column_end; ++j) {
+                double sum;
+                sum = A[i][k] * B[k][j];
+                sum += A[i][k+1] * B[k+1][j];
+                sum += A[i][k+2] * B[k+2][j];
+                sum += A[i][k+3] * B[k+3][j];
+                sum += A[i][k+4] * B[k+4][j];
+                C[i][j] += sum;
+            }
+        }
+        for (int k = k_max_for_unrolled_loop; k < k_max; ++k) {
+            for (int j = column_start; j < column_end; ++j) {
+                C[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+
+}
+
+#elif F_MODE == 8
+
 //transpose version
 //This first transpose `B` to reduce cache-misses.
 //Perhaps transposing `B` before the call of this function is a better idea.
@@ -154,6 +256,9 @@ int main(int argc, char **argv) {
                                        cref(A),
                                        cref(B),
                                        ref(C),
+//                                        &A,
+//                                        &B,
+//                                        &C,
                                        row_start,
                                        row_end
                                      ));
